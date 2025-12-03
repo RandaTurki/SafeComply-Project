@@ -1,0 +1,107 @@
+CREATE TABLE users (
+    user_id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    full_name VARCHAR2(150) NOT NULL,
+    email VARCHAR2(150) NOT NULL UNIQUE,
+    password_hash VARCHAR2(255) NOT NULL,
+
+    role VARCHAR2(20) DEFAULT 'employee' 
+        CHECK (role IN ('employee','auditor','admin')),
+
+    department VARCHAR2(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_login TIMESTAMP,
+    last_password_change_at TIMESTAMP
+);
+
+
+CREATE TABLE devices (
+    device_id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id NUMBER NOT NULL,
+    device_uuid VARCHAR2(255) NOT NULL,
+    mac_address VARCHAR2(50),
+    os_type VARCHAR2(50),
+    browser VARCHAR2(100),
+    device_name VARCHAR2(150),
+
+    status VARCHAR2(20) DEFAULT 'active'
+        CHECK (status IN ('active','revoked')),
+
+    first_registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_used_at TIMESTAMP,
+
+    CONSTRAINT fk_devices_user
+        FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+CREATE TABLE password_policies (
+    policy_id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id NUMBER NOT NULL,
+
+    min_length NUMBER DEFAULT 8,
+
+    require_numbers NUMBER(1) DEFAULT 1 CHECK (require_numbers IN (0,1)),
+    require_special NUMBER(1) DEFAULT 1 CHECK (require_special IN (0,1)),
+    require_uppercase NUMBER(1) DEFAULT 1 CHECK (require_uppercase IN (0,1)),
+
+    max_password_age NUMBER DEFAULT 90,
+
+    status VARCHAR2(20) DEFAULT 'active'
+        CHECK (status IN ('active','disabled')),
+
+    CONSTRAINT fk_policy_user
+        FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+CREATE TABLE backup_policies (
+    backup_id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    device_id NUMBER NOT NULL,
+
+    backup_frequency VARCHAR2(20) DEFAULT 'weekly'
+        CHECK (backup_frequency IN ('daily','weekly','monthly')),
+
+    last_backup_at TIMESTAMP,
+    backup_method VARCHAR2(100),
+    storage_location VARCHAR2(255),
+    retention_days NUMBER DEFAULT 30,
+
+    backup_status VARCHAR2(20) DEFAULT 'compliant'
+        CHECK (backup_status IN ('compliant','non_compliant')),
+
+    CONSTRAINT fk_backup_device
+        FOREIGN KEY (device_id) REFERENCES devices(device_id)
+);
+
+CREATE TABLE compliance_logs (
+    log_id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id NUMBER NOT NULL,
+    policy_id NUMBER NOT NULL,
+    device_id NUMBER,
+    
+    compliance_status VARCHAR2(20) NOT NULL
+        CHECK (compliance_status IN ('compliant','non_compliant','warning')),
+
+    score NUMBER,
+    checked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    notes CLOB,
+
+    CONSTRAINT fk_compliance_user
+        FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+CREATE TABLE ai_logs (
+    ai_log_id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id NUMBER NOT NULL,
+
+    risk_level VARCHAR2(20) DEFAULT 'low'
+        CHECK (risk_level IN ('low','medium','high')),
+
+    prediction VARCHAR2(255),
+    confidence NUMBER,
+    triggered_policy NUMBER,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_ai_user
+        FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
